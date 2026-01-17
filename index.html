@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RPT LIASON System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 20px; }
+        .box { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 900px; margin: 0 auto 20px auto; }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        button { padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.3s; color: white; }
+        .btn-blue { background: #1a73e8; width: 100%; }
+        .btn-green { background: #28a745; }
+        .btn-red { background: #d93025; }
+        .stats { display: flex; gap: 20px; background: #e8f0fe; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+        th { background: #f1f3f4; text-align: left; padding: 10px; border-bottom: 2px solid #ddd; }
+        td { padding: 8px; border-bottom: 1px solid #eee; }
+        #debug { color: #888; font-size: 10px; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <h2 style="color: #1a73e8; margin-top: 0;">🔍 LIASON DATA</h2>
+    <div style="display: flex; gap: 10px;">
+        <input type="text" id="searchInput" placeholder="Search anything (RA#...)" onkeyup="processSearch()">
+        <button class="btn-green" onclick="loadData()">🔄 Refresh</button>
+        <button class="btn-red" onclick="downloadPDF()">📄 PDF</button>
+    </div>
+
+    <div class="stats">
+        <div><label>Records Found:</label><div id="count" style="font-size:18px; font-weight:bold;">0</div></div>
+        <div><label>Total Amount:</label><div id="total" style="font-size:18px; font-weight:bold; color:#d93025;">₱0.00</div></div>
+    </div>
+
+ <table id="rptTable" style="width:100%; border-collapse: collapse; margin-top:10px;">
+    <thead>
+        <tr style="background:#f1f3f4; text-align: left;">
+            <th style="padding:10px;">RA#</th> <th style="padding:10px;">Buyer's Name</th>
+            <th style="padding:10px;">OR#</th>
+            <th style="padding:10px;">Yr Covered</th>
+            <th style="padding:10px;">OR Amount</th>
+            <th style="padding:10px;">OR Date</th>
+        </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+</table>
+    <div id="debug">System ready.</div>
+</div>
+
+<iframe name="hidden_iframe" style="display:none;"></iframe>
+
+<script>
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyu5YHdYQOmU-TZ9M645ObWCcU9jQTLFu9QVo9pVlyFz-f2uP4WQ7hVpXBVUyKlo7o7xg/exec"; 
+    let masterData = [];
+
+    window.onload = loadData;
+
+    function loadData() {
+        document.getElementById('debug').innerText = "Loading data from Google...";
+        fetch(WEB_APP_URL)
+            .then(res => res.json())
+            .then(data => {
+                masterData = data;
+                document.getElementById('debug').innerText = "Data loaded: " + data.length + " rows.";
+                processSearch();
+            })
+            .catch(err => {
+                document.getElementById('debug').innerText = "Error: Use the /exec link and make sure it is shared to 'Anyone'.";
+            });
+    }
+
+  function processSearch() {
+    const query = document.getElementById('searchInput').value.toLowerCase();
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = "";
+    
+    let totalOrAmount = 0;
+    let count = 0;
+
+    masterData.forEach(row => {
+        // Ang RA# (Description) ay nasa Column C (Index 2)
+        const raValue = String(row[2]).toLowerCase();
+
+        if (raValue.includes(query) && query !== "") {
+            count++;
+            
+            // --- UPDATED MAPPING PARA SA MGA BAGONG COLUMN ---
+            const raNumber   = row[2];          // Column C (Index 2)
+            const buyerName  = row[3];          // Column D (Index 3)
+            
+            // Returned OR Section (Column Z onwards):
+            const orNumber   = row[25] || "---"; // Column Z (Index 25)
+            const yrCovered  = row[26] || "---"; // Column AA (Index 26)
+            
+            // Linisin ang amount (Column AB / Index 27)
+            const rawAmount  = String(row[27]).replace(/[^0-9.-]+/g,"");
+            const orAmount   = parseFloat(rawAmount) || 0; 
+            
+            const orDate     = row[28] || "---"; // Column AC (Index 28)
+            const sheetYear  = row[row.length - 1]; // Sheet Name/Year
+
+            totalOrAmount += orAmount;
+
+            let tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${raNumber}</td>
+                <td>${buyerName}</td>
+                <td>${orNumber}</td>
+                <td>${yrCovered}</td>
+                <td style="font-weight:bold; color: #d93025;">₱${orAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                <td>${orDate}</td>
+                <td style="color: blue; font-weight: bold; font-size: 0.8em;">${sheetYear}</td>
+            `;
+            tbody.appendChild(tr);
+        }
+    });
+
+    // I-update ang summary stats
+    document.getElementById('count').innerText = count;
+    document.getElementById('total').innerText = "₱" + totalOrAmount.toLocaleString(undefined, {minimumFractionDigits: 2});
+}
+
+    function downloadPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.text("RPT Report", 14, 15);
+        doc.autoTable({ html: '#rptTable', startY: 20 });
+        doc.save("RPT_Report.pdf");
+    }
+</script>
+</body>
+</html>
