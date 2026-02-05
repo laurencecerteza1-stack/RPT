@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DOCS. REQUEST TD W/ REG. FEE - SLLI</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 20px; }
+        .box { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 1100px; margin: 0 auto 20px auto; }
+        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        button { padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.3s; color: white; }
+        .btn-green { background: #28a745; }
+        .btn-red { background: #d93025; }
+        .stats { display: flex; gap: 20px; background: #e8f0fe; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
+        th { background: #f1f3f4; text-align: left; padding: 10px; border-bottom: 2px solid #ddd; }
+        td { padding: 8px; border-bottom: 1px solid #eee; }
+        #debug { color: #888; font-size: 10px; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <h2 style="color: #1a73e8; margin-top: 0;">📜 DOCS. REQUEST TD W/ REG. FEE - SLLI</h2>
+    <div style="display: flex; gap: 10px;">
+        <input type="text" id="searchInput" placeholder="Search anything (RA#...)" onkeyup="processSearch()">
+        <button class="btn-green" onclick="loadData()">🔄 Refresh</button>
+        <button class="btn-red" onclick="downloadPDF()">📄 PDF</button>
+    </div>
+
+    <div class="stats">
+        <div><label>Total TD W/ REG. FEE:</label><div id="count" style="font-size:18px; font-weight:bold;">0</div></div>
+        </div>
+
+    <table id="rptTable">
+        <thead>
+            <tr>
+                <th>RA#</th> 
+                <th>Buyer's Name</th>
+                <th>Tra#</th>
+                <th>Remarks</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+    <div id="debug">System ready.</div>
+</div>
+
+<script>
+    // Koneksyon sa iyong existing Google Sheet Web App
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyXO_Hu5s363AAJDl7Wc09jICRySrGMPfhFrJE1n8gfZvGw5yZaM0LBK7ziD6SfGV5xvA/exec"; 
+    let masterData = [];
+
+    window.onload = loadData;
+
+    function loadData() {
+        document.getElementById('debug').innerText = "Loading data from Google...";
+        fetch(WEB_APP_URL)
+            .then(res => res.json())
+            .then(data => {
+                masterData = data;
+                document.getElementById('debug').innerText = "Data loaded: " + data.length + " rows.";
+                processSearch();
+            })
+            .catch(err => {
+                document.getElementById('debug').innerText = "Error loading data.";
+            });
+    }
+
+    function processSearch() {
+    const query = document.getElementById('searchInput').value.toLowerCase();
+    const tbody = document.getElementById('tableBody');
+    tbody.innerHTML = "";
+    
+    let count = 0;
+
+    masterData.forEach(row => {
+        // Updated mapping base sa iyong bagong listahan
+        const raNumber         = row[5] || "---"; // Column 5
+        const buyerName        = row[7] || "---"; // Column 7
+        const transferredTitle = row[8] || "---"; // Column 8
+        const remarks          = row[9] || "---"; // Column 9 (Dating Original Title)
+        
+        // Search logic
+        // Siguraduhin na ang 'year' variable ay defined sa labas, 
+        // o palitan ito kung wala kang year variable.
+        const searchField = (String(buyerName) + String(raNumber)).toLowerCase();
+
+        if (searchField.includes(query) && query !== "") {
+            count++;
+            
+            // Inayos ang pagkakasunod-sunod ng <td> para sa display
+            tbody.innerHTML += `
+                <tr>
+                    <td>${raNumber}</td>
+                    <td>${buyerName}</td>
+                    <td>${transferredTitle}</td>
+                    <td>${remarks}</td>
+                </tr>`;
+        }
+    });
+
+    document.getElementById('count').innerText = count;
+}
+
+    function downloadPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('l', 'mm', 'a4'); 
+        
+        // Tinanggal ang reference sa 'total' element para mawala ang error
+        const countDisplay = document.getElementById('count').innerText;
+        const searchQuery = document.getElementById('searchInput').value;
+
+        doc.setFontSize(18);
+        doc.setTextColor(26, 115, 232);
+        doc.text("DOCS. REQUEST TD W/ REG. FEE - SLLI - REPORT", 14, 15);
+        
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Keyword: ${searchQuery || "All"} | Records: ${countDisplay} | Generated: ${new Date().toLocaleDateString()}`, 14, 25);
+
+        doc.autoTable({
+            html: '#rptTable',
+            startY: 35,
+            theme: 'grid',
+            headStyles: { fillColor: [26, 115, 232] },
+            styles: { fontSize: 8 }
+        });
+
+        const finalY = doc.lastAutoTable.finalY + 10;
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 0);
+        doc.text(`Total Records Found: ${countDisplay}`, 14, finalY);
+
+        doc.save(`Req_TD_SLLI_${searchQuery || 'Report'}.pdf`);
+}
+</script>
+</body>
+</html>
