@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RPT Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="sidebar">
+    <div class="sidebar-top">
+        
+        <div class="welcome-tag">
+            <span style="font-size: 10px; color: #bdc3c7; display: block;">Welcome,</span>
+            <span id="welcomeUser" style="font-weight: bold; color: #3498db;">RPT DEPARTMENT</span>
+        </div>
+        <hr style="border: 0.5px solid #34495e; margin: 20px 0;">
+        <ul>
+            <li onclick="showSection('home')">🏠 Home Dashboard</li>
+            <li onclick="showSection('liaison')"> Liaison</li>
+            <li onclick="showSection('released')"> Released</li>
+            <li onclick="showSection('slli')"> DOCS REQ TD - SLLI</li>
+            <li onclick="showSection('slrdi')"> DOCS REQ TD - SLRDI</li>
+        </ul>
+    </div>
+    ...
+</div>
+
+<div class="main-content">
+    <header>
+        <h1 id="section-title">Home Dashboard</h1>
+    </header>
+
+    <div id="home-view">
+        <div class="card-grid">
+            <div class="card liaison-border" onclick="showSection('liaison')">
+                <div class="card-icon">🏃</div>
+                <h3>Liaison</h3>
+                <p>Track current field tasks</p>
+            </div>
+
+            <div class="card released-border" onclick="showSection('released')">
+                <div class="card-icon">📦</div>
+                <h3>Released</h3>
+                <p>View finished documents</p>
+            </div>
+
+            <div class="card slli-border" onclick="showSection('slli')">
+                <div class="card-icon">🏢</div>
+                <h3 style="font-size: 15px;">DOCS. REQUEST TD - SLLI</h3>
+                <p>W/ Reg Fee Tracker</p>
+            </div>
+
+            <div class="card slrdi-border" onclick="showSection('slrdi')">
+                <div class="card-icon">🏛️</div>
+                <h3 style="font-size: 15px;">DOCS. REQUEST TD - SLRDI</h3>
+                <p>W/ Reg Fee Tracker</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+    <script src="script.js"></script>
+</body>
+</html>
