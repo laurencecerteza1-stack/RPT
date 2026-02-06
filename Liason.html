@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RPT LIASON System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; padding: 20px; }
+        .box { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 1100px; margin: 0 auto 20px auto; }
+        input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        button { padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.3s; color: white; }
+        .btn-green { background: #28a745; }
+        .btn-red { background: #d93025; }
+        .stats { display: flex; gap: 20px; background: #e8f0fe; padding: 15px; border-radius: 8px; margin: 15px 0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 11px; }
+        th { background: #f1f3f4; text-align: left; padding: 10px; border-bottom: 2px solid #ddd; }
+        td { padding: 8px; border-bottom: 1px solid #eee; }
+        #debug { color: #888; font-size: 10px; text-align: center; }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <h2 style="color: #1a73e8; margin-top: 0;">🔍 LIAISON DATA</h2>
+    <div style="display: flex; gap: 10px;">
+        <input type="text" id="searchInput" placeholder="Search anything (RA#...)" onkeyup="processSearch()">
+        <button class="btn-green" onclick="loadData()">🔄 Refresh</button>
+        <button class="btn-red" onclick="downloadPDF()">📄 PDF</button>
+    </div>
+
+    <div class="stats">
+        <div><label>Records Found:</label><div id="count" style="font-size:18px; font-weight:bold;">0</div></div>
+        <div><label>Total Amount:</label><div id="total" style="font-size:18px; font-weight:bold; color:#d93025;">₱0.00</div></div>
+    </div>
+
+    <table id="rptTable">
+        <thead>
+            <tr>
+                <th>RA#</th> 
+                <th>Buyer's Name</th>
+                <th>OR#</th>
+                <th>Yr Covered</th>
+                <th>OR Amount</th>
+                <th>OR Date</th>
+                <th>Sheet Yr</th>
+                <th>Remarks</th> </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+    <div id="debug">System ready.</div>
+</div>
+
+<script>
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyu5YHdYQOmU-TZ9M645ObWCcU9jQTLFu9QVo9pVlyFz-f2uP4WQ7hVpXBVUyKlo7o7xg/exec"; 
+    let masterData = [];
+
+    window.onload = loadData;
+
+    function loadData() {
+        document.getElementById('debug').innerText = "Loading data from Google...";
+        fetch(WEB_APP_URL)
+            .then(res => res.json())
+            .then(data => {
+                masterData = data;
+                document.getElementById('debug').innerText = "Data loaded: " + data.length + " rows.";
+                processSearch();
+            })
+            .catch(err => {
+                document.getElementById('debug').innerText = "Error loading data.";
+            });
+    }
+
+    function processSearch() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = "";
+        
+        let totalOrAmount = 0;
+        let count = 0;
+
+        masterData.forEach(row => {
+            const raValue = String(row[2]).toLowerCase();   
+            const buyerValue = String(row[3]).toLowerCase(); 
+
+            if ((raValue.includes(query) || buyerValue.includes(query)) && query !== "") {
+                count++;
+                
+                const raNumber   = row[2];          
+                const buyerName  = row[3];          
+                const orNumber   = row[19] || "---"; 
+                const yrCovered  = row[20] || "---"; 
+                const rawAmount  = String(row[21]).replace(/[^0-9.-]+/g,"");
+                const orAmount   = parseFloat(rawAmount) || 0; 
+                const orDate     = row[22] || "---"; 
+                const sheetYear  = row[row.length - 1]; 
+                const remarks    = row[16] || "---"; // Idinagdag (Row 16)
+
+                totalOrAmount += orAmount;
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${raNumber}</td>
+                        <td>${buyerName}</td>
+                        <td>${orNumber}</td>
+                        <td>${yrCovered}</td>
+                        <td style="text-align: right; font-weight:bold; color: #d93025;">₱${orAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</td>
+                        <td>${orDate}</td>
+                        <td>${sheetYear}</td>
+                        <td>${remarks}</td>
+                    </tr>`;
+            }
+        });
+
+        document.getElementById('count').innerText = count;
+        document.getElementById('total').innerText = "\u20B1" + totalOrAmount.toLocaleString(undefined, {minimumFractionDigits: 2});
+    }
+
+    function downloadPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('l', 'mm', 'a4'); // Landscape para kasya lahat ng columns
+        
+        const totalRaw = document.getElementById('total').innerText.replace(/[^\d.-]/g, '');
+        const countDisplay = document.getElementById('count').innerText;
+        const searchQuery = document.getElementById('searchInput').value;
+
+        doc.setFontSize(18);
+        doc.setTextColor(26, 115, 232);
+        doc.text("RPT Fund Request Report", 14, 15);
+        
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Keyword: ${searchQuery || "All Records"} | Generated: ${new Date().toLocaleDateString()}`, 14, 25);
+
+        doc.autoTable({
+            html: '#rptTable',
+            startY: 35,
+            theme: 'grid',
+            headStyles: { fillColor: [26, 115, 232] },
+            styles: { fontSize: 8 },
+            columnStyles: {
+                4: { halign: 'right', fontStyle: 'bold' } 
+            },
+            didParseCell: function(data) {
+                if (data.column.index === 4 && data.cell.section === 'body') {
+                    let val = data.cell.text[0];
+                    data.cell.text[0] = val.replace(/[^\d.,-]/g, '');
+                }
+            }
+        });
+
+        const finalY = doc.lastAutoTable.finalY + 10;
+        doc.setFontSize(11);
+        doc.setTextColor(0, 0, 0);
+        doc.text(`Total Records: ${countDisplay}`, 14, finalY);
+        doc.text(`Grand Total: PHP ${parseFloat(totalRaw).toLocaleString(undefined, {minimumFractionDigits: 2})}`, 14, finalY + 7);
+
+        doc.save(`RPT_Report_${searchQuery || 'Export'}.pdf`);
+    }
+</script>
+</body>
+</html>
