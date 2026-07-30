@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPT System — Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#0f1117;min-height:100vh;display:flex;align-items:center;justify-content:center;color:#e2e8f0}
+.wrap{width:100%;max-width:400px;padding:0 24px}
+.logo{text-align:center;margin-bottom:40px}
+.logo-badge{display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;background:#1e40af;border-radius:16px;margin-bottom:16px}
+.logo-badge svg{width:28px;height:28px;stroke:#93c5fd;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.logo h1{font-size:22px;font-weight:600;color:#f1f5f9;letter-spacing:-0.3px}
+.logo p{font-size:13px;color:#64748b;margin-top:4px}
+.card{background:#1a1f2e;border:1px solid #2d3748;border-radius:20px;padding:36px}
+.field{margin-bottom:20px}
+.field label{display:block;font-size:12px;font-weight:500;color:#94a3b8;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px}
+.field input{width:100%;background:#0f1117;border:1px solid #2d3748;border-radius:10px;padding:12px 16px;font-size:14px;color:#e2e8f0;outline:none;transition:border-color .2s,box-shadow .2s;font-family:'Inter',sans-serif}
+.field input:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+.field input::placeholder{color:#475569}
+.btn{width:100%;background:#1e40af;color:#e0f2fe;border:none;border-radius:10px;padding:13px;font-size:14px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:background .2s,transform .1s;margin-top:4px;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn:hover{background:#1d4ed8}
+.btn:active{transform:scale(.99)}
+.btn:disabled{opacity:.6;cursor:not-allowed}
+.alert{border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:20px;display:none}
+.alert-error{background:#2d1b1b;border:1px solid #7f1d1d;color:#fca5a5}
+.alert-info{background:#1e3a5f;border:1px solid #1e40af;color:#93c5fd}
+.spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.footer{text-align:center;margin-top:24px;font-size:12px;color:#334155}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">
+    <div class="logo-badge">
+      <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    </div>
+    <h1>RPT System</h1>
+    <p>Real Property Tax Computation</p>
+  </div>
+  <div class="card">
+    <div class="alert" id="alert"></div>
+    <form onsubmit="event.preventDefault();handleLogin()">
+      <div class="field">
+        <label>Username</label>
+        <input type="text" id="user" placeholder="Enter your username" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="pass" placeholder="••••••••" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn" id="loginBtn">Sign In</button>
+    </form>
+  </div>
+  <div class="footer">RPT Computation System &copy; 2026</div>
+</div>
+
+<script>
+const API_URL = 'api.php';
+
+// If already logged in, go straight to dashboard
+if(sessionStorage.getItem('rpt_user')) window.location.href = 'home.html';
+
+async function handleLogin() {
+  const username = document.getElementById('user').value.trim();
+  const password = document.getElementById('pass').value.trim();
+  const btn      = document.getElementById('loginBtn');
+
+  if(!username || !password) {
+    showAlert('Please fill in username and password.', 'error');
+    return;
+  }
+
+  // Show loading state
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Signing in…';
+
+  try {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: 'login', username: username.toUpperCase(), password})
+    });
+
+    const rawText = await res.text();
+    let data;
+    try {
+      data = JSON.parse(rawText);
+    } catch(e) {
+      // Try to extract JSON from response (handles PHP warnings/notices)
+      const start = rawText.indexOf('{');
+      if(start !== -1) {
+        try { data = JSON.parse(rawText.substring(start)); } catch(e2) {}
+      }
+    }
+
+    if(!data) {
+      showAlert('Server error. Subukan muli.', 'error');
+      return;
+    }
+
+    if(data.error) {
+      showAlert(data.error, 'error');
+      document.getElementById('pass').value = '';
+      document.getElementById('pass').focus();
+      return;
+    }
+
+    if(data.success) {
+      // Save session
+      sessionStorage.setItem('rpt_user', data.username);
+      sessionStorage.setItem('rpt_is_admin', data.role === 'admin' ? '1' : '0');
+      sessionStorage.setItem('rpt_role', data.role || 'staff');
+
+      // Save profile data if available
+      if(data.accentColor) sessionStorage.setItem('rpt_accent', data.accentColor);
+      if(data.avatar)      sessionStorage.setItem('rpt_avatar', data.avatar);
+
+      showAlert('✓ Welcome, ' + data.username + '!', 'info');
+      setTimeout(() => window.location.href = 'home.html', 500);
+    }
+
+  } catch(e) {
+    showAlert('Connection error: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'Sign In';
+  }
+}
+
+function showAlert(msg, type) {
+  const a = document.getElementById('alert');
+  a.textContent = msg;
+  a.className = 'alert alert-' + (type === 'error' ? 'error' : 'info');
+  a.style.display = 'block';
+  if(type === 'error') setTimeout(() => a.style.display = 'none', 3500);
+}
+
+// Enter key support
+document.getElementById('pass').addEventListener('keydown', e => {
+  if(e.key === 'Enter') handleLogin();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPT System — Computation</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+const RPT_THEME = (() => {
+  function hexToRgb(hex) {
+    hex = hex.replace('#','');
+    if(hex.length===3) hex=hex.split('').map(c=>c+c).join('');
+    const n=parseInt(hex,16);
+    return {r:(n>>16)&255,g:(n>>8)&255,b:n&255};
+  }
+  function alpha(hex, a) {
+    const {r,g,b}=hexToRgb(hex);
+    return `rgba(${r},${g},${b},${a})`;
+  }
+  function applyAccent(color) {
+    if(!color) return;
+    const root = document.documentElement;
+    root.style.setProperty('--accent', color);
+    root.style.setProperty('--accent2', color);
+    root.style.setProperty('--accent-light', alpha(color, 0.08));
+    root.style.setProperty('--border', alpha(color, 0.18));
+    root.style.setProperty('--border2', alpha(color, 0.30));
+    if(document.body) document.body.style.backgroundImage = `
+      radial-gradient(circle at 20% 0%, ${alpha(color,0.06)} 0%, transparent 50%),
+      radial-gradient(circle at 80% 100%, ${alpha(color,0.05)} 0%, transparent 50%)
+    `;
+    const bi=document.querySelector('.brand-icon');
+    if(bi) bi.style.background=`linear-gradient(135deg,${color},${alpha(color,0.75)})`;
+    document.querySelectorAll('.btn-primary').forEach(el=>{el.style.background=color;el.style.boxShadow=`0 2px 8px ${alpha(color,0.35)}`;});
+    document.querySelectorAll('.section-header:not(.section-header-danger)').forEach(el=>{
+      el.style.background=`linear-gradient(135deg,${alpha(color,0.05)},${alpha(color,0.09)})`;
+      el.style.borderColor=alpha(color,0.30);
+    });
+    document.querySelectorAll('.section-header:not(.section-header-danger) h3').forEach(el=>el.style.color=color);
+    document.querySelectorAll('.section-total:not(.section-total-danger)').forEach(el=>{el.style.borderColor=color;el.style.color=color;el.style.boxShadow=`0 2px 8px ${alpha(color,0.18)}`;});
+    document.querySelectorAll('.info-card h4').forEach(el=>el.style.color=color);
+    document.querySelectorAll('.fs-legend.accent').forEach(el=>el.style.color=color);
+    document.querySelectorAll('.year-row select').forEach(el=>{
+      el.style.background=alpha(color,0.08);el.style.borderColor=alpha(color,0.30);el.style.color=color;
+    });
+  }
+  function load() { const s=sessionStorage.getItem('rpt_accent'); if(s) applyAccent(s); return s; }
+  return { load, apply: applyAccent };
+})();
+function setThemeMode(mode){
+  document.body.classList.toggle('theme-dark', mode==='dark');
+  localStorage.setItem('rpt_theme_mode', mode);
+  updateThemeToggleUI();
+}
+function toggleThemeMode(){
+  setThemeMode(document.body.classList.contains('theme-dark') ? 'light' : 'dark');
+}
+function updateThemeToggleUI(){
+  const isDark=document.body.classList.contains('theme-dark');
+  const icon=document.getElementById('themeToggleIcon');
+  if(icon) icon.textContent = isDark ? '☀️' : '🌙';
+}
+function applyInitialTheme(){
+  const savedMode=localStorage.getItem('rpt_theme_mode')||'dark';
+  document.body.classList.toggle('theme-dark', savedMode==='dark');
+  updateThemeToggleUI();
+  RPT_THEME.load();
+}
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',applyInitialTheme);
+}else{
+  applyInitialTheme();
+}
+</script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#f0f4f8;--surface:#ffffff;--surface2:#f7f9fc;--border:#e2e8f0;--border2:#cbd5e1;
+  --text:#1e293b;--muted:#64748b;--sub:#94a3b8;--accent:#2563eb;--accent-light:#eff6ff;
+  --accent2:#0ea5e9;--green:#16a34a;--green-light:#f0fdf4;--green-border:#bbf7d0;
+  --red:#dc2626;--red-light:#fef2f2;--red-border:#fecaca;--yellow:#d97706;
+  --yellow-light:#fffbeb;--yellow-border:#fde68a;
+  --shadow-sm:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);
+  --shadow:0 4px 16px rgba(0,0,0,.08),0 2px 6px rgba(0,0,0,.04);
+  --shadow-lg:0 10px 40px rgba(0,0,0,.1),0 4px 12px rgba(0,0,0,.06);
+  --radius:12px;--radius-sm:8px;--radius-xs:6px;
+}
+body.theme-dark{
+  --bg:#0f1117;--surface:#1a1f2e;--surface2:#222840;--border:#2d3748;--border2:#3d4a63;
+  --text:#e2e8f0;--muted:#94a3b8;--sub:#94a3b8;--accent-light:rgba(37,99,235,.15);
+  --green-light:#14291e;--green-border:#1e4530;--red-light:#2a1416;--red-border:#4a1f22;
+  --yellow-light:#2a2114;--yellow-border:#4a3a1f;
+  --shadow-sm:0 1px 3px rgba(0,0,0,.3),0 1px 2px rgba(0,0,0,.2);
+  --shadow:0 4px 16px rgba(0,0,0,.4),0 2px 6px rgba(0,0,0,.25);
+  --shadow-lg:0 10px 40px rgba(0,0,0,.5),0 4px 12px rgba(0,0,0,.3);
+}
+body.theme-dark{background-image:radial-gradient(circle at 20% 0%,rgba(37,99,235,.10) 0%,transparent 50%),radial-gradient(circle at 80% 100%,rgba(14,165,233,.08) 0%,transparent 50%);}
+body.theme-dark .topnav{background:rgba(26,31,46,.9);}
+/* Mga hardcoded white/light backgrounds na naiwan sa ilang states — dinadag para readable pa rin sa dark mode */
+body.theme-dark .field input:focus,body.theme-dark .field select:focus,body.theme-dark .field textarea:focus{background:var(--surface2)!important;}
+body.theme-dark .field input[readonly]{background:var(--surface2)!important;color:var(--sub)!important;}
+body.theme-dark .comp-table input:focus{background:var(--surface2)!important;}
+body.theme-dark .comp-table tbody tr:hover td{background:var(--surface2)!important;}
+body.theme-dark .brgy-drop-zone.has-image{background:var(--surface2)!important;}
+body.theme-dark .section-total{background:var(--surface)!important;}
+body.theme-dark .remarks-field{color:#fcd34d!important;}
+body.theme-dark .brgy-drop-hint kbd{background:#33415580;color:var(--sub);}
+body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:12px;background-image:radial-gradient(circle at 20% 0%,rgba(37,99,235,.06) 0%,transparent 50%),radial-gradient(circle at 80% 100%,rgba(14,165,233,.05) 0%,transparent 50%);}
+.topnav{background:rgba(255,255,255,.9);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border-bottom:1px solid var(--border);padding:10px 24px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:100;box-shadow:var(--shadow-sm);transform:translateZ(0);will-change:transform;}
+.topnav-left{display:flex;align-items:center;gap:12px}
+.brand{display:flex;align-items:center;gap:8px}
+.brand-icon{width:32px;height:32px;background:linear-gradient(135deg,#2563eb,#0ea5e9);border-radius:9px;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(37,99,235,.3)}
+.brand-icon svg{width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.brand-name{font-size:13px;font-weight:700;color:var(--text);letter-spacing:-.3px}
+.divider{width:1px;height:20px;background:var(--border);margin:0 4px}
+.page-title{font-size:13px;font-weight:600;color:var(--muted)}
+.edit-badge{display:inline-flex;align-items:center;gap:5px;background:var(--red-light);border:1px solid var(--red-border);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--red);font-weight:600}
+.topnav-right{display:flex;align-items:center;gap:6px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:var(--radius-sm);font-size:12px;font-weight:600;cursor:pointer;border:none;font-family:'Plus Jakarta Sans',sans-serif;transition:all .18s cubic-bezier(.4,0,.2,1);white-space:nowrap;letter-spacing:-.1px;}
+.btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.btn-primary{background:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(37,99,235,.3)}
+.btn-primary:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.btn-warning{background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;box-shadow:0 2px 8px rgba(217,119,6,.3)}
+.btn-warning:hover{box-shadow:0 4px 12px rgba(217,119,6,.4);transform:translateY(-1px)}
+.btn-success{background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;box-shadow:0 2px 8px rgba(22,163,74,.3)}
+.btn-success:hover{box-shadow:0 4px 12px rgba(22,163,74,.4);transform:translateY(-1px)}
+.btn-ghost{background:var(--surface);border:1px solid var(--border);color:var(--muted)}
+.btn-ghost:hover{background:var(--surface2);color:var(--text);border-color:var(--border2)}
+.btn-outline-danger{background:transparent;border:1px solid var(--red-border);color:var(--red)}
+.btn-outline-danger:hover{background:var(--red-light)}
+.btn-sm{padding:4px 10px;font-size:11px;border-radius:var(--radius-xs)}
+.page{padding:20px 24px;max-width:1440px;margin:0 auto}
+.info-grid{display:grid;grid-template-columns:minmax(150px,1fr) minmax(150px,1fr) minmax(150px,1fr) minmax(200px,2fr);gap:14px;margin-bottom:20px}
+.info-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow-sm);transition:box-shadow .2s;}
+.info-card:hover{box-shadow:var(--shadow)}
+.info-card h4{font-size:9px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+.info-card h4::before{content:'';display:inline-block;width:3px;height:10px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:2px;}
+.field{margin-bottom:9px}
+.field label{display:block;font-size:8.5px;font-weight:700;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.field input,.field select,.field textarea{width:100%;background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--radius-xs);padding:7px 10px;font-size:12px;color:var(--text);outline:none;font-family:'Plus Jakarta Sans',sans-serif;transition:all .18s;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.08);}
+.field input[readonly]{background:#f8fafc;color:var(--muted);cursor:default;border-style:dashed;}
+.remarks-field{background:var(--yellow-light)!important;border-color:var(--yellow-border)!important;color:#78350f!important;resize:none;min-height:115px;overflow:hidden;font-weight:500;}
+.remarks-field:focus{border-color:var(--yellow)!important;box-shadow:0 0 0 3px rgba(217,119,6,.1)!important;}
+.year-row{display:flex;align-items:center;gap:8px;margin-top:8px}
+.year-row label{font-size:11px;font-weight:600;color:var(--muted);white-space:nowrap}
+.year-row select{background:var(--accent-light);border:1.5px solid #bfdbfe;border-radius:var(--radius-xs);padding:5px 10px;font-size:12px;color:var(--accent);font-weight:600;outline:none;font-family:'Plus Jakarta Sans',sans-serif;width:auto;}
+.brgy-label{display:block;font-size:8.5px;font-weight:700;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.3px;}
+.brgy-drop-zone{position:relative;width:100%;min-height:90px;background:var(--surface2);border:1.5px dashed var(--border2);border-radius:var(--radius-xs);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:4px;cursor:pointer;transition:all .18s;overflow:hidden;}
+.brgy-drop-zone:hover,.brgy-drop-zone.drag-over{border-color:var(--accent);background:var(--accent-light);}
+.brgy-drop-zone.has-image{border-style:solid;border-color:var(--border);background:#fff;cursor:default;}
+.brgy-drop-hint{display:flex;flex-direction:column;align-items:center;gap:3px;pointer-events:none;}
+.brgy-drop-hint svg{width:22px;height:22px;stroke:var(--sub);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;}
+.brgy-drop-hint span{font-size:10px;color:var(--sub);font-weight:600;text-align:center;line-height:1.4;}
+.brgy-drop-hint kbd{font-size:9px;background:#e2e8f0;border-radius:3px;padding:1px 5px;color:var(--muted);font-family:'DM Mono',monospace;}
+#brgyPreview{width:100%;height:100%;object-fit:contain;display:none;max-height:160px;border-radius:calc(var(--radius-xs) - 1px);}
+.brgy-clear-btn{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.55);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:13px;cursor:pointer;display:none;align-items:center;justify-content:center;line-height:1;z-index:2;}
+.brgy-drop-zone.has-image .brgy-clear-btn{display:flex;}
+.brgy-drop-zone.has-image .brgy-drop-hint{display:none;}
+.brgy-drop-zone.has-image #brgyPreview{display:block;}
+#brgyFileInput{display:none;}
+.section-header{display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,#eff6ff,#f0f9ff);border:1px solid #bfdbfe;border-radius:var(--radius) var(--radius) 0 0;padding:14px 18px;margin-bottom:0;}
+.section-header h3{font-size:13px;font-weight:700;color:var(--accent);letter-spacing:-.2px}
+.section-total-wrap{display:flex;align-items:center;gap:10px}
+.section-total-wrap span{font-size:11px;font-weight:600;color:var(--muted)}
+.section-total{background:#fff;border:2px solid var(--accent);border-radius:var(--radius-sm);padding:6px 14px;font-size:15px;font-weight:700;color:var(--accent);width:170px;text-align:center;font-family:'DM Mono',monospace;box-shadow:0 2px 8px rgba(37,99,235,.15);}
+.section-header-danger{background:linear-gradient(135deg,#fff1f2,#fff5f5);border-color:#fecaca;}
+.section-header-danger h3{color:var(--red)}
+.section-total-danger{border-color:var(--red);color:var(--red);box-shadow:0 2px 8px rgba(220,38,38,.15)}
+.fs-block{background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 var(--radius) var(--radius);overflow:hidden;margin-top:0;box-shadow:var(--shadow-sm);}
+.fs-legend{padding:9px 16px;border-bottom:1px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;background:var(--surface2);display:flex;align-items:center;gap:8px;}
+.fs-legend::before{content:'';width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.fs-legend.accent{color:var(--accent)}.fs-legend.accent::before{background:var(--accent)}
+.fs-legend.normal{color:var(--muted)}.fs-legend.normal::before{background:var(--sub)}
+.table-wrap{overflow-x:auto}
+table.comp-table{width:100%;border-collapse:collapse;font-size:11px}
+.comp-table th{padding:9px 10px;font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;text-align:left;background:var(--surface2);border-bottom:2px solid var(--border);white-space:nowrap;}
+.comp-table td{padding:3px 5px;border-bottom:1px solid var(--border);vertical-align:middle;}
+.comp-table tbody tr:last-child td{border-bottom:none}
+.comp-table tbody tr:hover td{background:#f8faff}
+.comp-table input{width:100%;background:transparent;border:1.5px solid transparent;border-radius:5px;padding:5px 7px;font-size:11px;color:var(--text);outline:none;font-family:'DM Mono',monospace;transition:all .15s;min-width:70px;}
+.comp-table input:focus{border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.08);}
+.comp-table input[readonly]{color:var(--muted);cursor:default;border-color:transparent;background:transparent;}
+.comp-table input[readonly]:focus{border-color:transparent;box-shadow:none;background:transparent}
+.add-row-bar{padding:10px 16px;border-top:1px dashed var(--border);background:var(--surface2);}
+.standalone-fs{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;margin-top:14px;box-shadow:var(--shadow-sm);}
+.toggle-building-wrap{text-align:center;margin:20px 0;position:relative}
+.toggle-building-wrap::before{content:'';position:absolute;top:50%;left:0;right:0;height:1px;background:var(--border);z-index:0;}
+.toggle-building-wrap button{position:relative;z-index:1;background:var(--surface)}
+.building-block{display:none;margin-top:20px}
+.grand-total-row{display:flex;justify-content:flex-end;margin-top:24px;padding-bottom:8px}
+.grand-total-card{background:linear-gradient(135deg,#f0fdf4,#ecfdf5);border:2px solid var(--green-border);border-radius:16px;padding:18px 28px;display:flex;align-items:center;gap:20px;min-width:340px;box-shadow:0 4px 20px rgba(22,163,74,.12);position:relative;overflow:hidden;}
+.grand-total-card::before{content:'';position:absolute;top:-20px;right:-20px;width:80px;height:80px;background:rgba(22,163,74,.08);border-radius:50%;}
+.grand-total-card span{font-size:13px;font-weight:700;color:var(--green);position:relative}
+.grand-total-input{background:transparent;border:none;font-size:28px;font-weight:700;color:var(--green);outline:none;width:200px;text-align:right;font-family:'DM Mono',monospace;cursor:default;position:relative;text-shadow:0 1px 2px rgba(22,163,74,.2);}
+.toast{position:fixed;bottom:24px;right:24px;background:#1e293b;color:#f1f5f9;border-radius:10px;padding:12px 18px;font-size:12px;font-weight:500;z-index:999;display:none;box-shadow:var(--shadow-lg);border-left:3px solid var(--green);animation:slideIn .3s ease;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:1000;display:none;align-items:center;justify-content:center;animation:modalFadeIn .15s ease-out}
+.modal-overlay.show{display:flex}
+@keyframes modalFadeIn{from{opacity:0}to{opacity:1}}
+@keyframes modalPopIn{from{opacity:0;transform:translateY(6px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+.modal-box{background:#1e293b;border:1px solid #334155;border-radius:16px;padding:28px;width:360px;max-width:92vw;box-shadow:0 20px 60px rgba(0,0,0,.5);animation:modalPopIn .18s cubic-bezier(.16,1,.3,1)}
+.modal-box h4{font-size:15px;font-weight:600;color:#f1f5f9;margin-bottom:8px}
+.modal-box p{font-size:13px;color:#94a3b8;margin-bottom:24px;line-height:1.5}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end}
+.modal-actions .btn{min-width:84px;padding:9px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid #334155;background:#0f172a;color:#f1f5f9;transition:transform .1s ease,filter .15s ease}
+.modal-actions .btn:hover{filter:brightness(1.15)}
+.modal-actions .btn:active{transform:scale(.97)}
+.modal-actions .btn-primary{background:#2563eb;border-color:#2563eb;color:#fff}
+@keyframes slideIn{from{transform:translateX(20px);opacity:0}to{transform:translateX(0);opacity:1}}
+.pdf-text-overlay{display:inline-block;width:100%;min-height:22px;padding:5px 7px;font-size:11px;font-family:'DM Mono',monospace;color:var(--text);word-break:break-word;white-space:pre-wrap;}
+.pdf-text-overlay.head-style{font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;padding:7px 10px;background:var(--surface2);border:1.5px solid var(--border);border-radius:var(--radius-xs);min-height:32px;}
+.pdf-text-overlay.remarks-style{background:var(--yellow-light);border:1.5px solid var(--yellow-border);border-radius:var(--radius-xs);color:#78350f;font-weight:500;font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;padding:7px 10px;min-height:115px;}
+.pdf-text-overlay.total-style{font-family:'DM Mono',monospace;font-size:15px;font-weight:700;color:var(--accent);text-align:center;background:#fff;border:2px solid var(--accent);border-radius:var(--radius-sm);padding:6px 14px;width:170px;}
+.pdf-text-overlay.total-danger-style{color:var(--red);border-color:var(--red);}
+.pdf-text-overlay.grand-style{font-family:'DM Mono',monospace;font-size:28px;font-weight:700;color:var(--green);text-align:right;width:200px;}
+.pdf-text-overlay.year-style{font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:600;color:var(--accent);background:var(--accent-light);border:1.5px solid #bfdbfe;border-radius:var(--radius-xs);padding:5px 10px;display:inline-block;width:auto;}
+@media print{
+  .topnav,.add-row-bar,.toggle-building-wrap,.d-print-none,.btn{display:none!important}
+  body{background:white;color:#000}
+  .info-card,.fs-block,.section-header,.grand-total-card,.standalone-fs{background:white!important;border-color:#ddd!important;box-shadow:none!important}
+  .comp-table input{color:#000!important;font-family:monospace}
+  .remarks-field{background:#fff9c4!important;color:#333!important}
+  body{background-image:none!important}
+  .brgy-drop-zone{border-style:solid!important;}
+  .brgy-clear-btn{display:none!important;}
+}
+</style>
+</head>
+<body>
+<script>if(sessionStorage.getItem('rpt_role')==='viewer'){window.location.href='home.html';}</script>
+
+<div class="topnav" id="topnav">
+  <div class="topnav-left">
+    <div class="brand">
+      <div class="brand-icon"><svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
+      <span class="brand-name">RPT System</span>
+    </div>
+    <div class="divider"></div>
+    <span class="page-title">Computation Form</span>
+    <div class="edit-badge" id="editStatus" style="display:none">✎ Editing Row <span id="rowDisplay"></span></div>
+  </div>
+  <div class="topnav-right">
+    <button class="btn btn-ghost" id="themeToggleBtn" onclick="toggleThemeMode()" title="Switch dark/light mode"><span id="themeToggleIcon">🌙</span></button>
+    <button class="btn btn-ghost" onclick="goHome()"><svg viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>Dashboard</button>
+    <button class="btn btn-ghost" onclick="goToNewForm()"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>New</button>
+    <button class="btn btn-warning" id="saveBtn" onclick="saveRecord()"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Save / Update</button>
+    <button class="btn btn-ghost" onclick="window.print()"><svg viewBox="0 0 24 24"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print</button>
+    <button class="btn btn-success" onclick="downloadPDF()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>PDF</button>
+  </div>
+</div>
+
+<div class="page" id="printable-area">
+<div class="export-logo-header" style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:6px 0 14px 0;border-bottom:2px solid #e2e8f0;margin-bottom:16px">
+  <img src="assets/logo-stalucia-realty.png" alt="Sta. Lucia Realty & Development, Inc." style="height:46px;width:auto;object-fit:contain">
+  <img src="assets/logo-stalucia-land.png" alt="Sta. Lucia Land, Inc." style="height:46px;width:auto;object-fit:contain">
+</div>
+<form id="taxForm">
+<input type="hidden" id="editRowNumber">
+
+<div class="info-grid">
+  <div class="info-card">
+    <h4>Property Info</h4>
+    <div class="field"><label>Date of Computation</label><input type="text" id="compDate" class="head-field"></div>
+    <div class="field"><label>Lot Details</label><input type="text" id="lotDetails" class="head-field" oninput="triggerGlobalRecalc();checkLotRecordExists();checkLiaisonForLot()"></div>
+    <div id="lotCheckStatus" class="d-print-none" style="font-size:11px;margin-top:-4px"></div>
+    <div id="liaisonCheckStatus" class="d-print-none" style="font-size:11px;margin-top:2px"></div>
+    <div class="field"><label>Prepared By</label><input type="text" id="preparedBy" class="head-field" readonly></div>
+    <div class="year-row"><label>For Year:</label><select id="date"></select></div>
+  </div>
+  <div class="info-card">
+    <h4>Coverage</h4>
+    <div class="field"><label>Full Payment</label><input type="text" class="head-field"></div>
+    <div class="field"><label>Yr. Cover</label><input type="text" class="head-field"></div>
+    <div class="field"><label>Requested By</label><input type="text" class="head-field"></div>
+    <div class="field"><label>Contract Date</label><input type="text" class="head-field"></div>
+    <div class="field"><label>Adv. RPT Payment</label><input type="text" id="advPayment" oninput="formatInputCurrency(this);updateGrandTotal()"></div>
+  </div>
+  <div class="info-card">
+    <h4>Location</h4>
+    <div class="field">
+      <label class="brgy-label">Brgy</label>
+      <div class="brgy-drop-zone" id="brgyDropZone" title="Click to upload, or paste (Ctrl+V) an image">
+        <img id="brgyPreview" alt="Barangay document preview">
+        <button type="button" class="brgy-clear-btn" id="brgyClr" onclick="clearBrgyImage(event)" title="Remove image">×</button>
+        <div class="brgy-drop-hint">
+          <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <span>Click to upload<br>or <kbd>Ctrl+V</kbd> to paste</span>
+        </div>
+      </div>
+      <input type="file" id="brgyFileInput" accept="image/*" onchange="handleBrgyFile(this.files[0])">
+    </div>
+    <div class="field"><label>Moved In / Turn Over</label><input type="text" class="head-field"></div>
+    <div class="field"><label>Tax Dec</label><input type="text" class="head-field"></div>
+    <div class="field"><label>Lapse</label><input type="text" class="head-field"></div>
+  </div>
+  <div class="info-card">
+    <h4>Remarks</h4>
+    <div class="field">
+      <textarea id="remarks" class="remarks-field" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'">SUBJECT FOR ADJUSTMENT -</textarea>
+    </div>
+    <div id="liaisonViewerPanel" class="d-print-none" style="display:none;margin-top:6px;border:1px solid var(--border,#3332);border-radius:8px;overflow:hidden;font-size:11.5px"></div>
+  </div>
+</div>
+
+<div class="section-header">
+  <h3>🏘 Land Computation</h3>
+  <div class="section-total-wrap"><span>Land Total:</span><input type="text" id="landTotal" class="section-total" readonly value="0.00"></div>
+</div>
+<div class="fs-block">
+  <div class="fs-legend accent">Year with OR (Land)</div>
+  <div class="table-wrap"><table class="comp-table"><thead><tr><th>Yr Charge</th><th>OR Date</th><th>No. Yrs</th><th>Penalty Description</th><th>OR Amount</th><th>36% Annum</th><th>Penalty Amt</th><th>Total Amount</th><th class="d-print-none" style="width:70px"></th></tr></thead><tbody id="bodyWithOrLand"></tbody></table></div>
+  <div class="add-row-bar d-print-none"><button type="button" class="btn btn-ghost btn-sm" onclick="addRow('bodyWithOrLand')">+ Add Row</button></div>
+</div>
+
+<div class="standalone-fs">
+  <div class="fs-legend normal">Year without OR (Land)</div>
+  <div class="table-wrap"><table class="comp-table"><thead><tr><th>Year Range</th><th>Assessed Value</th><th>Tax Due %</th><th>Tax Due Amt</th><th>Penalty %</th><th>Penalty Amt</th><th>Total Amount</th><th class="d-print-none" style="width:70px"></th></tr></thead><tbody id="bodyWithoutOrLand"></tbody></table></div>
+  <div class="add-row-bar d-print-none"><button type="button" class="btn btn-ghost btn-sm" onclick="addRow('bodyWithoutOrLand')">+ Add Row</button></div>
+</div>
+
+<div class="toggle-building-wrap d-print-none">
+  <button type="button" id="toggleBuildingBtn" class="btn btn-outline-danger" onclick="toggleBuilding()">+ Show Building Section</button>
+</div>
+
+<div id="buildingSection" class="building-block">
+  <div class="section-header section-header-danger">
+    <h3>🏢 Building Computation</h3>
+    <div class="section-total-wrap"><span>Building Total:</span><input type="text" id="buildTotal" class="section-total section-total-danger" readonly value="0.00"></div>
+  </div>
+  <div class="fs-block">
+    <div class="fs-legend accent">Year with OR (Building)</div>
+    <div class="table-wrap"><table class="comp-table"><thead><tr><th>Yr Charge</th><th>OR Date</th><th>No. Yrs</th><th>Penalty Description</th><th>OR Amount</th><th>36% Annum</th><th>Penalty Amt</th><th>Total Amount</th><th class="d-print-none" style="width:70px"></th></tr></thead><tbody id="bodyWithOrBuild"></tbody></table></div>
+    <div class="add-row-bar d-print-none"><button type="button" class="btn btn-ghost btn-sm" onclick="addRow('bodyWithOrBuild')">+ Add Row</button></div>
+  </div>
+  <div class="standalone-fs">
+    <div class="fs-legend normal">Year without OR (Building)</div>
+    <div class="table-wrap"><table class="comp-table"><thead><tr><th>Year Range</th><th>Assessed Value</th><th>Tax Due %</th><th>Tax Due Amt</th><th>Penalty %</th><th>Penalty Amt</th><th>Total Amount</th><th class="d-print-none" style="width:70px"></th></tr></thead><tbody id="bodyWithoutOrBuild"></tbody></table></div>
+    <div class="add-row-bar d-print-none"><button type="button" class="btn btn-ghost btn-sm" onclick="addRow('bodyWithoutOrBuild')">+ Add Row</button></div>
+  </div>
+</div>
+
+<div class="grand-total-row">
+  <div class="grand-total-card"><span>Grand Total Due:</span><input type="text" id="grandTotal" class="grand-total-input" readonly value="0.00"></div>
+</div>
+</form>
+</div>
+<div class="toast" id="toast"></div>
+<div class="modal-overlay" id="genAlertModal"><div class="modal-box"><h4 id="genAlertTitle">Notice</h4><p id="genAlertMsg"></p><div class="modal-actions"><button class="btn btn-primary" id="genAlertOkBtn">OK</button></div></div></div>
+
+<script>
+const CLOUD_URL="api.php",CHAT_URL="api.php";
+let CURRENT_USER="";
+
+// ── TAX DATABASE — loaded from MySQL, fallback to empty ──
+let TAX_DATABASE = {};
+
+async function loadTaxRates() {
+  try {
+    const res = await fetch(CLOUD_URL + '?type=taxrates');
+    const data = await res.json();
+    if (data && typeof data === 'object' && !data.error) {
+      TAX_DATABASE = data;
+    }
+  } catch(e) {
+    console.warn('Could not load tax rates from DB, using empty fallback.');
+  }
+}
+
+(function init(){
+  const u=sessionStorage.getItem('rpt_user');
+  if(!u){window.location.href='index.html';return;}
+  CURRENT_USER=u;
+  const savedAccent=sessionStorage.getItem('rpt_accent');
+  if(savedAccent) RPT_THEME.apply(savedAccent);
+})();
+
+function goHome(){sessionStorage.setItem('rpt_skip_reload','1');window.location.href='home.html?view=computation';}
+function goToNewForm(){document.getElementById('editRowNumber').value='';document.getElementById('editStatus').style.display='none';document.getElementById('taxForm').reset();clearBrgyImageSilent();initNewForm();}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.style.display='block';setTimeout(()=>t.style.display='none',3000);}
+function showAlertModal(message,options={}){
+  const overlay=document.getElementById("genAlertModal"),titleEl=document.getElementById("genAlertTitle"),msgEl=document.getElementById("genAlertMsg"),okBtn=document.getElementById("genAlertOkBtn");
+  titleEl.textContent=(options.danger?"⚠️ ":"")+(options.title||"Notice");
+  msgEl.textContent=message;
+  overlay.classList.add("show");
+  return new Promise(resolve=>{
+    function cleanup(){overlay.classList.remove("show");okBtn.removeEventListener("click",onOk);overlay.removeEventListener("click",onOverlay);resolve();}
+    function onOk(){cleanup();}
+    function onOverlay(e){if(e.target===overlay)cleanup();}
+    okBtn.addEventListener("click",onOk);
+    overlay.addEventListener("click",onOverlay);
+  });
+}
+const alert=showAlertModal;
+
+// ── BRGY IMAGE ──
+let brgyBase64='';
+function setBrgyImage(src){brgyBase64=src;const dz=document.getElementById('brgyDropZone'),img=document.getElementById('brgyPreview');img.src=src;dz.classList.add('has-image');}
+function clearBrgyImage(e){if(e)e.stopPropagation();clearBrgyImageSilent();}
+function clearBrgyImageSilent(){brgyBase64='';const dz=document.getElementById('brgyDropZone'),img=document.getElementById('brgyPreview');img.src='';dz.classList.remove('has-image');document.getElementById('brgyFileInput').value='';}
+function handleBrgyFile(file){if(!file||!file.type.startsWith('image/'))return;const reader=new FileReader();reader.onload=e=>setBrgyImage(e.target.result);reader.readAsDataURL(file);}
+document.getElementById('brgyDropZone').addEventListener('click',function(){if(!this.classList.contains('has-image'))document.getElementById('brgyFileInput').click();});
+const dz=document.getElementById('brgyDropZone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag-over');const file=e.dataTransfer.files[0];if(file)handleBrgyFile(file);});
+document.addEventListener('paste',function(e){const items=e.clipboardData&&e.clipboardData.items;if(!items)return;for(let i=0;i<items.length;i++){if(items[i].type.startsWith('image/')){handleBrgyFile(items[i].getAsFile());break;}}});
+
+// ── TAX LOOKUP (uses DB-loaded TAX_DATABASE) ──
+function getTaxInfo(lot){
+  const l=lot.trim().toUpperCase();
+  // Sort keys by length descending so longer keys match first (e.g. ACL001 before ACL)
+  const keys=Object.keys(TAX_DATABASE).sort((a,b)=>b.length-a.length);
+  for(let k of keys) if(l.startsWith(k)){const v=TAX_DATABASE[k];return (v && typeof v==='object')?(v.taxRate||"2%"):v;}
+  return "2%";
+}
+function triggerGlobalRecalc(){const t=getTaxInfo(document.getElementById('lotDetails').value);document.querySelectorAll('.wo-tax-pct').forEach(el=>{el.value=t;calcWithoutOR(el);});updateGrandTotal();}
+const fcy=n=>new Intl.NumberFormat('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}).format(n);
+const parseNum=s=>parseFloat(String(s).replace(/,/g,''))||0;
+function formatInputCurrency(el){let v=el.value.replace(/,/g,'');if(!isNaN(v)&&v.length>0){let p=v.split('.');p[0]=p[0].replace(/\B(?=(\d{3})+(?!\d))/g,',');el.value=p.join('.');}}
+
+function addRow(id){
+  const div=document.createElement('table');
+  const wT=`<tr><td><input type="text" class="w-charge" oninput="calcWithOR(this)"></td><td><input type="text" class="or-date" onchange="calcWithOR(this)"></td><td><input type="text" class="w-yrs" readonly ondblclick="this.readOnly=false;this.focus();" onblur="this.readOnly=true" oninput="calcWithOR(this)"></td><td><input type="text" class="w-range" readonly></td><td><input type="text" class="w-amt" oninput="formatInputCurrency(this);calcWithOR(this)"></td><td><input type="text" class="w-annum" readonly></td><td><input type="text" class="w-p-amt" readonly></td><td><input type="text" class="w-total ${id.includes('Land')?'land-t-field':'build-t-field'}" readonly value="0.00"></td><td class="d-print-none" style="text-align:center;white-space:nowrap"><button type="button" class="btn btn-ghost btn-sm" style="padding:3px 8px;margin-right:2px" onclick="clearRow(this)">C</button><button type="button" class="btn btn-sm" style="padding:3px 8px;background:#fee2e2;border:1px solid #fecaca;color:#dc2626" onclick="removeRow(this)">×</button></td></tr>`;
+  const woT=`<tr><td><input type="text" class="wo-charge" oninput="calcWithoutOR(this)"></td><td><input type="text" class="wo-av" oninput="formatInputCurrency(this);calcWithoutOR(this)"></td><td><input type="text" class="wo-tax-pct" readonly ondblclick="this.readOnly=false;this.focus();" onblur="this.readOnly=true" oninput="calcWithoutOR(this)"></td><td><input type="text" class="wo-td" readonly></td><td><input type="text" class="wo-p-pct" readonly ondblclick="this.readOnly=false;this.focus();" onblur="this.readOnly=true" oninput="calcWithoutOR(this)"></td><td><input type="text" class="wo-p-amt" readonly></td><td><input type="text" class="wo-total ${id.includes('Land')?'land-t-field':'build-t-field'}" readonly value="0.00"></td><td class="d-print-none" style="text-align:center;white-space:nowrap"><button type="button" class="btn btn-ghost btn-sm" style="padding:3px 8px;margin-right:2px" onclick="clearRow(this)">C</button><button type="button" class="btn btn-sm" style="padding:3px 8px;background:#fee2e2;border:1px solid #fecaca;color:#dc2626" onclick="removeRow(this)">×</button></td></tr>`;
+  div.innerHTML=id.includes('Without')?woT:wT;
+  document.getElementById(id).appendChild(div.querySelector('tr'));
+  if(id.includes('Without'))document.getElementById(id).lastElementChild.querySelector('.wo-tax-pct').value=getTaxInfo(document.getElementById('lotDetails').value);
+}
+function clearRow(btn){const tr=btn.closest('tr');const zeroClasses=['w-total','wo-total','w-annum','w-p-amt','wo-td','wo-p-amt','w-yrs'];tr.querySelectorAll('input').forEach(i=>{i.value=zeroClasses.some(c=>i.classList.contains(c))?'0.00':'';});updateGrandTotal();}
+function removeRow(btn){if(btn.closest('tbody').querySelectorAll('tr').length>1)btn.closest('tr').remove();updateGrandTotal();}
+function calcWithOR(el){const tr=el.closest('tr');const yrs=tr.querySelector('.w-yrs'),dateStr=tr.querySelector('.or-date').value.trim(),chargeStr=tr.querySelector('.w-charge').value.trim(),rawAmt=parseNum(tr.querySelector('.w-amt').value);const dd=document.getElementById('date');if(!dd||!dateStr||isNaN(rawAmt))return;const selYear=parseInt(dd.value.split('-').pop()),prevYear=selYear-1;const parts=dateStr.replace(/-/g,'/').split('/').map(Number);const[month,day,year]=parts;const d=new Date(year,month-1,day);let qFactor=1.0;const qm=chargeStr.match(/\((\d)-?(\d)?\)/);if(qm){const sQ=parseInt(qm[1]),eQ=qm[2]?parseInt(qm[2]):sQ;qFactor=((eQ-sQ)+1)/4;}const amount=rawAmt*qFactor;const noPenDate=new Date(prevYear,11,21);if(d>=noPenDate){if(yrs.readOnly)yrs.value='0.00';updateFields(tr,'NO PENALTY',amount,parseFloat(yrs.value||0));return;}let qNum=1,qFrac=0;if(month>9||(month===9&&day>=21)){qNum=4;qFrac=0.75;}else if(month>6||(month===6&&day>=21)){qNum=3;qFrac=0.50;}else if(month>3||(month===3&&day>=21)){qNum=2;qFrac=0.25;}const isDec21=month===12&&day>=21;const effYear=isDec21?year+1:year,yearDiff=selYear-effYear;let autoYrs=0,rangeLabel='';if(yearDiff>5){autoYrs=1.00;rangeLabel=`${year}-${prevYear}`;}else{autoYrs=isDec21?yearDiff:Math.max(0,yearDiff-qFrac);rangeLabel=isDec21?`${effYear}-${prevYear}`:`${year} Q${qNum}-${prevYear}`;}if(yrs.readOnly)yrs.value=autoYrs.toFixed(2);updateFields(tr,rangeLabel,amount,parseFloat(yrs.value)||0);}
+function updateFields(tr,range,amount,years){const annum=amount*0.36,penalty=annum*years;tr.querySelector('.w-range').value=range;tr.querySelector('.w-annum').value=fcy(annum);tr.querySelector('.w-p-amt').value=fcy(penalty);tr.querySelector('.w-total').value=fcy(amount+penalty);updateGrandTotal();}
+function calcWithoutOR(el){const tr=el.closest('tr');const ri=tr.querySelector('.wo-charge').value.trim(),av=parseNum(tr.querySelector('.wo-av').value);const taxRate=(parseFloat(tr.querySelector('.wo-tax-pct').value.replace('%',''))||0)/100;const dd=document.getElementById('date');if(!dd)return;const selYear=parseInt(dd.value.split('-').pop());let mult=1,qc=4,yr=parseInt(ri);if(ri.includes('-')&&!ri.includes('(')){const y=ri.split('-');mult=(parseInt(y[1])-parseInt(y[0]))+1;}if(ri.includes('(')){const m=ri.match(/\((\d)-?(\d)?\)/);if(m)qc=(parseInt(m[2]||m[1])-parseInt(m[1]))+1;}const tdAmt=((av*taxRate)*mult/4)*qc;const ppf=tr.querySelector('.wo-p-pct');let pPct;if(el===ppf){pPct=parseFloat(ppf.value.replace('%',''))/100||0;}else{const nowD=new Date();let pm=nowD.getMonth()+1;if(nowD.getDate()>=21)pm+=1;const monthsElapsed=(selYear-yr)*12+(pm+3);const capped=Math.max(0,Math.min(36,monthsElapsed));pPct=(capped*2)/100;ppf.value=(pPct*100).toFixed(0)+'%';}const pAmt=tdAmt*pPct;tr.querySelector('.wo-td').value=fcy(tdAmt);tr.querySelector('.wo-p-amt').value=fcy(pAmt);tr.querySelector('.wo-total').value=fcy(tdAmt+pAmt);updateGrandTotal();}
+function updateGrandTotal(){let l=0,b=0;document.querySelectorAll('.land-t-field').forEach(i=>l+=parseNum(i.value));if(document.getElementById('buildingSection').style.display==='block')document.querySelectorAll('.build-t-field').forEach(i=>b+=parseNum(i.value));const adv=parseNum(document.getElementById('advPayment').value);document.getElementById('landTotal').value=fcy(l);document.getElementById('buildTotal').value=fcy(b);document.getElementById('grandTotal').value=fcy((l+b)-adv);}
+function toggleBuilding(force){const s=document.getElementById('buildingSection'),btn=document.getElementById('toggleBuildingBtn');s.style.display=force!==undefined?(force?'block':'none'):(s.style.display==='block'?'none':'block');btn.textContent=s.style.display==='block'?'- Hide Building Section':'+ Show Building Section';updateGrandTotal();}
+function scrapeTable(id){return Array.from(document.querySelectorAll(`#${id} tr`)).map(tr=>Array.from(tr.querySelectorAll('input')).map(i=>i.value));}
+function restoreTable(id,rows){const tb=document.getElementById(id);tb.innerHTML='';rows.forEach(r=>{addRow(id);const inputs=tb.lastElementChild.querySelectorAll('input');r.forEach((v,i)=>{if(inputs[i])inputs[i].value=v;});});}
+
+function downloadPDF(){const el=document.getElementById('printable-area');const wasDark=document.body.classList.contains('theme-dark');if(wasDark)document.body.classList.remove('theme-dark');const lot=document.getElementById('lotDetails').value||'LOT';const prep=document.getElementById('preparedBy').value||'PREP';const dt=document.getElementById('compDate').value.replace(/\//g,'-')||'DATE';const replacements=[];el.querySelectorAll('input, textarea, select').forEach(function(orig){if(orig.type==='hidden')return;if(orig.closest('.d-print-none'))return;const val=orig.tagName==='SELECT'?(orig.options[orig.selectedIndex]?.text||''):orig.value;let styleClass='pdf-text-overlay';if(orig.classList.contains('head-field')||orig.tagName==='TEXTAREA'){styleClass+=orig.tagName==='TEXTAREA'?' remarks-style':' head-style';}else if(orig.tagName==='SELECT'){styleClass+=' year-style';}else if(orig.id==='landTotal'||orig.id==='buildTotal'){styleClass+=orig.id==='buildTotal'?' total-style total-danger-style':' total-style';}else if(orig.id==='grandTotal'){styleClass+=' grand-style';}const div=document.createElement('div');div.className=styleClass;div.textContent=val||'\u00a0';div.style.display=orig.tagName==='SELECT'?'inline-block':'block';orig.parentNode.insertBefore(div,orig);orig.style.display='none';replacements.push({orig,div});});const navEl=document.getElementById('topnav');const toggleWrap=document.querySelector('.toggle-building-wrap');const liaisonPanel=document.getElementById('liaisonViewerPanel');const liaisonPanelWasShown=liaisonPanel&&liaisonPanel.style.display!=='none';const liaisonStatus=document.getElementById('liaisonCheckStatus');const lotStatus=document.getElementById('lotCheckStatus');navEl.style.display='none';if(toggleWrap)toggleWrap.style.display='none';if(liaisonPanel)liaisonPanel.style.display='none';if(liaisonStatus)liaisonStatus.style.display='none';if(lotStatus)lotStatus.style.display='none';window.scrollTo(0,0);const opt={margin:[0.3,0.3,0.3,0.3],filename:`${lot}_${prep}_${dt}.pdf`,image:{type:'jpeg',quality:0.98},html2canvas:{scale:1.5,useCORS:true,scrollY:0,scrollX:0,backgroundColor:'#f0f4f8',logging:false,windowWidth:document.documentElement.scrollWidth,windowHeight:document.documentElement.scrollHeight},jsPDF:{unit:'in',format:'legal',orientation:'portrait'}};html2pdf().set(opt).from(el).save().then(()=>showToast('✓ PDF downloaded successfully')).catch(err=>alert('PDF error: '+err.message)).finally(()=>{replacements.forEach(r=>{r.orig.style.display='';r.div.parentNode.removeChild(r.div);});navEl.style.display='';if(toggleWrap)toggleWrap.style.display='';if(liaisonPanel&&liaisonPanelWasShown)liaisonPanel.style.display='block';if(liaisonStatus)liaisonStatus.style.display='';if(lotStatus)lotStatus.style.display='';if(wasDark)document.body.classList.add('theme-dark');});}
+
+let lotCheckTimer=null;
+async function checkLotRecordExists(){
+  clearTimeout(lotCheckTimer);
+  lotCheckTimer=setTimeout(_doLotRecordCheck,400);
+}
+async function _doLotRecordCheck(){
+  const statusEl=document.getElementById('lotCheckStatus');
+  const lot=document.getElementById('lotDetails').value.trim();
+  const excludeId=document.getElementById('editRowNumber').value||0;
+  if(!lot){statusEl.textContent='';return;}
+  statusEl.textContent='Checking...';statusEl.style.color='var(--muted)';
+  try{
+    const res=await fetch(CLOUD_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'checkLotRecord',lot,excludeId})}).then(r=>r.json());
+    if(res && res.found){
+      statusEl.innerHTML=`⚠️ May existing record na ang Lot na 'to (by ${res.prepared_by||'—'}, ${res.date_saved||''}) — <a href="#" id="lotCheckEditLink" style="color:#3b82f6;text-decoration:underline">i-click para i-edit</a>`;
+      statusEl.style.color='#f59e0b';
+      document.getElementById('lotCheckEditLink').onclick=function(e){
+        e.preventDefault();
+        loadForEdit(res.id, res.full_data);
+        statusEl.textContent='';
+      };
+    }else{
+      statusEl.textContent=excludeId?'':'✓ Walang existing record — bagong lot.';
+      statusEl.style.color='#22c55e';
+    }
+  }catch(e){statusEl.textContent='⚠ Lookup error: '+e.message;statusEl.style.color='#ef4444';console.error('checkLotRecord failed:',e);}
+}
+
+// ============================================
+// LIAISON VIEWER: show existing Liaison record(s) for this RA/Lot
+// (read-only preview, separate from the Computation duplicate-check above)
+// ============================================
+let liaisonCheckTimer=null;
+function checkLiaisonForLot(){
+  clearTimeout(liaisonCheckTimer);
+  liaisonCheckTimer=setTimeout(_doLiaisonCheck,400);
+}
+function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+let lastLiaisonRows=[];
+function normalizeLiaisonDate(s){
+  s=String(s||'').trim();
+  if(!s)return'';
+  const m=s.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{2,4})$/);
+  if(!m)return s;
+  let[,mo,da,yr]=m;
+  if(yr.length===2)yr=(parseInt(yr)<70?'20':'19')+yr;
+  return`${parseInt(mo)}/${parseInt(da)}/${yr}`;
+}
+function applyLiaisonRecordToOR(idx){
+  const r=lastLiaisonRows[idx];
+  if(!r)return;
+  const tbody=document.getElementById('bodyWithOrLand');
+  let tr=tbody.lastElementChild;
+  const isEmpty=tr&&!tr.querySelector('.or-date').value.trim()&&!tr.querySelector('.w-amt').value.trim()&&!tr.querySelector('.w-charge').value.trim();
+  if(!isEmpty){addRow('bodyWithOrLand');tr=tbody.lastElementChild;}
+  tr.querySelector('.or-date').value=normalizeLiaisonDate(r.or_date);
+  const amtInput=tr.querySelector('.w-amt');
+  amtInput.value=r.or_amount||r.amount||'0';
+  formatInputCurrency(amtInput);
+  calcWithOR(amtInput);
+  tr.scrollIntoView({behavior:'smooth',block:'center'});
+  showToast('✓ Na-apply ang OR Date at OR Amount sa With OR table');
+}
+async function _doLiaisonCheck(){
+  const statusEl=document.getElementById('liaisonCheckStatus');
+  const panel=document.getElementById('liaisonViewerPanel');
+  const raNo=document.getElementById('lotDetails').value.trim();
+  panel.style.display='none';panel.innerHTML='';
+  if(!raNo){statusEl.textContent='';return;}
+  statusEl.textContent='Checking Liaison records...';statusEl.style.color='var(--muted)';
+  try{
+    const res=await fetch(CLOUD_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'getLiaisonRecordsByRA',raNo})}).then(r=>r.json());
+    const rows=res && res.rows ? res.rows : [];
+    lastLiaisonRows=rows;
+    if(rows.length>0){
+      statusEl.innerHTML=`📋 May Liaison record(s) na ang RA/Lot na 'to (${rows.length}) — <a href="#" id="liaisonPanelToggle" style="color:#3b82f6;text-decoration:underline">tingnan</a>`;
+      statusEl.style.color='#f59e0b';
+      const rowsHtml=rows.map((r,i)=>`
+        <div class="liaison-row-item" data-idx="${i}" style="padding:8px 10px;border-top:1px solid var(--border,#3332);cursor:pointer" title="I-click para i-apply ang OR Date at Amount sa With OR table">
+          <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
+            <strong>OR#: ${escapeHtml(r.or_no||'—')}</strong>
+            <span style="opacity:.7">${escapeHtml(r.or_date||'')}</span>
+          </div>
+          <div style="opacity:.85;margin-top:2px">
+            Amount: ${escapeHtml(r.or_amount||r.amount||'0')}
+            &nbsp;•&nbsp; Year Covered: ${escapeHtml(r.or_yr_covered||r.yr_covered||'—')}
+          </div>
+        </div>`).join('');
+      panel.innerHTML=`<div style="padding:6px 10px;background:var(--accent-light,#3332);font-weight:600">Liaison Records — ${escapeHtml(raNo)} <span style="font-weight:400;opacity:.7">(click a record to apply)</span></div>${rowsHtml}`;
+      document.getElementById('liaisonPanelToggle').onclick=function(e){
+        e.preventDefault();
+        panel.style.display=panel.style.display==='none'?'block':'none';
+      };
+      panel.querySelectorAll('.liaison-row-item').forEach(el=>{
+        el.addEventListener('mouseenter',()=>el.style.background='var(--accent-light,#3332)');
+        el.addEventListener('mouseleave',()=>el.style.background='');
+        el.addEventListener('click',()=>applyLiaisonRecordToOR(parseInt(el.dataset.idx)));
+      });
+    }else{
+      statusEl.textContent='';
+    }
+  }catch(e){statusEl.textContent='⚠ Liaison lookup error: '+e.message;statusEl.style.color='#ef4444';console.error('checkLiaisonForLot failed:',e);}
+}
+
+async function saveRecord(){const lot=document.getElementById('lotDetails').value.trim();const existing=document.getElementById('editRowNumber').value;const btn=document.getElementById('saveBtn');if(!lot)return alert('Lot Details required!');btn.disabled=true;btn.textContent='Saving…';try{const record={existingRow:existing||null,lot,prep:document.getElementById('preparedBy').value,changedBy:CURRENT_USER,total:document.getElementById('grandTotal').value,fullData:{heads:Array.from(document.querySelectorAll('.head-field')).map(i=>i.value),adv:document.getElementById('advPayment').value,remarks:document.getElementById('remarks').value,brgyImage:brgyBase64,buildVisible:document.getElementById('buildingSection').style.display==='block',wLand:scrapeTable('bodyWithOrLand'),woLand:scrapeTable('bodyWithoutOrLand'),wBuild:scrapeTable('bodyWithOrBuild'),woBuild:scrapeTable('bodyWithoutOrBuild')}};const res=await fetch(CLOUD_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(record)});const rawText=await res.text();let result;try{result=rawText?JSON.parse(rawText):{};}catch(parseErr){await alert('The server did not return a valid response. Please check your connection and try again.',{title:'Save Failed',danger:true});return;}if(result.error){await alert(result.error==='DUPLICATE'?`Lot '${lot}' already has a record.`:'Save Error: '+result.error,{title:'Save Failed',danger:true});return;}const newId=result.id||existing;document.getElementById('editRowNumber').value=newId;document.getElementById('rowDisplay').textContent=newId;document.getElementById('editStatus').style.display='flex';try{await fetch(CHAT_URL+'?type=chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'chat',sender:'SYSTEM',message:`🤖 SYSTEM: ${CURRENT_USER} ${existing?'UPDATED':'ADDED'} record for Lot: ${lot}`})});}catch{}showToast('✓ Record saved successfully');}catch(e){await alert('Something went wrong while saving: '+e.message,{title:'Save Failed',danger:true});}finally{btn.disabled=false;btn.innerHTML='<svg width="13" height="13" viewBox="0 0 24 24" stroke="currentColor" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Save / Update';}}
+
+function initNewForm(){const t=new Date();document.getElementById('compDate').value=`${String(t.getMonth()+1).padStart(2,'0')}/${String(t.getDate()).padStart(2,'0')}/${t.getFullYear()}`;document.getElementById('preparedBy').value=CURRENT_USER;['bodyWithOrLand','bodyWithoutOrLand','bodyWithOrBuild','bodyWithoutOrBuild'].forEach(id=>{document.getElementById(id).innerHTML='';addRow(id);});document.getElementById('buildingSection').style.display='none';document.getElementById('toggleBuildingBtn').textContent='+ Show Building Section';updateGrandTotal();}
+
+function loadForEdit(rowNum,data){try{const p=typeof data==='string'?JSON.parse(data):data;document.getElementById('editRowNumber').value=rowNum;document.getElementById('rowDisplay').textContent=rowNum;document.getElementById('editStatus').style.display='flex';const heads=document.querySelectorAll('.head-field');if(p.heads&&Array.isArray(p.heads))p.heads.forEach((v,i)=>{if(heads[i])heads[i].value=v;});document.getElementById('advPayment').value=p.adv||0;document.getElementById('remarks').value=p.remarks||'';if(p.brgyImage)setBrgyImage(p.brgyImage);toggleBuilding(p.buildVisible);restoreTable('bodyWithOrLand',p.wLand||[]);restoreTable('bodyWithoutOrLand',p.woLand||[]);restoreTable('bodyWithOrBuild',p.wBuild||[]);restoreTable('bodyWithoutOrBuild',p.woBuild||[]);updateGrandTotal();}catch(e){console.error(e);alert('Cannot load record data.');}}
+
+document.addEventListener('DOMContentLoaded', async ()=>{
+  const savedAccent=sessionStorage.getItem('rpt_accent');
+  if(savedAccent) RPT_THEME.apply(savedAccent);
+
+  // Load tax rates from DB first
+  await loadTaxRates();
+
+  const ds=document.getElementById('date');
+  for(let yr=2026;yr<=2030;yr++){const o=document.createElement('option');o.value=`1-1-${yr}`;o.textContent=yr;if(yr===2026)o.selected=true;ds.appendChild(o);}
+  ds.addEventListener('change',()=>{document.querySelectorAll('.or-date').forEach(i=>calcWithOR(i));document.querySelectorAll('.wo-charge').forEach(i=>calcWithoutOR(i));});
+
+
+  const mode=sessionStorage.getItem('rpt_form_mode');
+  const rowNum=sessionStorage.getItem('rpt_edit_row');
+  const rawData=sessionStorage.getItem('rpt_edit_data');
+
+  if(mode==='edit'&&rowNum&&rawData){
+    ['bodyWithOrLand','bodyWithoutOrLand','bodyWithOrBuild','bodyWithoutOrBuild'].forEach(id=>document.getElementById(id).innerHTML='');
+    try{let parsed=rawData;if(typeof parsed==='string'){try{parsed=JSON.parse(parsed);}catch(e){}}if(typeof parsed==='string'){try{parsed=JSON.parse(parsed);}catch(e){}}loadForEdit(rowNum,parsed);}
+    catch(err){console.error(err);initNewForm();}
+  }else{initNewForm();}
+  checkLiaisonForLot();
+});
+</script>
+</body>
+</html>
